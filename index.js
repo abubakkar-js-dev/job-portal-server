@@ -41,11 +41,18 @@ async function run() {
       const application = req.body;
       const result = await jobApplications.insertOne(application);
 
-      res.send(result);
+      const id = application.job_id;
+      const query = { _id: new ObjectId(id) };
+      const job = res.send(result);
     });
 
     app.get("/jobs", async (req, res) => {
-      const cursor = jobCollection.find();
+      const email = req.query.email;
+      let query = {};
+      if (email) {
+        query = { hr_email: email };
+      }
+      const cursor = jobCollection.find(query);
       const result = await cursor.toArray();
 
       res.send(result);
@@ -55,6 +62,15 @@ async function run() {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const result = await jobCollection.findOne(filter);
+
+      res.send(result);
+    });
+
+    // post a new job
+
+    app.post("/jobs", async (req, res) => {
+      const newJobs = req.body;
+      const result = await jobCollection.insertOne(newJobs);
 
       res.send(result);
     });
@@ -70,15 +86,15 @@ async function run() {
 
     app.get("/my-application/", async (req, res) => {
       const email = req.query.email;
-      const filter = {applicant_email: email};
+      const filter = { applicant_email: email };
       const cursor = jobApplications.find(filter);
       const result = await cursor.toArray();
 
-      for(const applicaiton of result){
-        const query = {_id: new ObjectId(applicaiton.job_id)};
+      for (const applicaiton of result) {
+        const query = { _id: new ObjectId(applicaiton.job_id) };
         const job = await jobCollection.findOne(query);
 
-        if(job){
+        if (job) {
           applicaiton.title = job.title;
           applicaiton.location = job.location;
           applicaiton.copmany = job.copmany;
@@ -88,6 +104,36 @@ async function run() {
 
       res.send(result);
     });
+
+    // app.get('/job-applications/:id') ==> get a specific job application by id
+    app.get('/job-applications/jobs/:job_id',async(req,res)=>{
+      const jobId = req.params.job_id;
+      const filter = {job_id: jobId};
+      const result = await jobApplications.find(filter).toArray();
+
+      res.send(result);
+    })
+
+
+    app.patch('/job-applications/:id',async(req,res)=>{
+      const id = req.params.id;
+      const data = req.body;
+      const filter = {_id: new ObjectId(id)};
+      const option = {upsert: true};
+
+      const updatedDoc = {
+        $set: {
+          status: data.status
+        }
+      }
+
+      const result = await jobApplications.updateOne(filter,updatedDoc,option);
+      res.send(result);
+    })
+
+
+
+    
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
